@@ -6,7 +6,7 @@
 const OLD = "images/"; // put the 7 original images in /images (see SETUP.md)
 
 window.DEFAULT_CONTENT = {
-  sections: { about: true, education: true, skills: true, experience: true, certificates: true, contact: true },
+  sections: { about: true, education: true, skills: true, experience: true, certificates: true, feedback: true, contact: true },
 
   hero: {
     greeting: "Hello, I'm",
@@ -207,6 +207,14 @@ window.DEFAULT_CONTENT = {
     { image: OLD + "cert-futures1.jpg", title: "Futures For All — Remote Work Experience", text: "Recognises skills achieved through practical learning with the STEM Ambassador Network." },
     { image: OLD + "cert-futures2.jpg", title: "Futures For All — Work Experience Certificate", text: "Successfully completed educational and professional development activities." }
   ],
+
+  // Feedback: visitors submit from the website; the admin approves them.
+  // "items" are published feedback entries the admin manages directly.
+  feedback: {
+    heading: "Kind words & feedback",
+    text: "Visited my portfolio? I'd love to hear what you think. Your feedback helps me grow.",
+    items: []
+  },
 
   contact: {
     heading: "Let's Work Together",

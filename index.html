@@ -43,11 +43,13 @@
       <a href="#skills" data-sec="skills">Skills</a>
       <a href="#experience" data-sec="experience">Experience</a>
       <a href="#certificates" data-sec="certificates">Certificates</a>
+      <a href="#feedback" data-sec="feedback">Feedback</a>
       <a href="#contact" data-sec="contact">Contact</a>
     </nav>
     <div class="nav-actions">
       <button class="icon-btn" id="themeBtn" aria-label="Change colour theme" title="Change colour theme"></button>
       <a class="btn btn-outline btn-sm" id="cvBtn" href="#contact"></a>
+      <button class="nav-admin" id="adminNav" aria-label="Admin login"></button>
       <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open menu"><span></span><span></span><span></span></button>
     </div>
   </header>
@@ -157,6 +159,35 @@
       <p class="cert-caption" id="certCaption"></p>
     </section>
 
+    <!-- FEEDBACK -->
+    <section id="feedback" class="section">
+      <div class="sec-head center reveal">
+        <p class="eyebrow">Feedback</p>
+        <h2 class="sec-title" id="fbHeading"></h2>
+        <p class="sec-sub" id="fbText"></p>
+      </div>
+      <div class="fb-grid">
+        <div class="glass fb-summary reveal" id="fbSummary"></div>
+        <form class="glass fb-form reveal" id="fbForm" novalidate>
+          <h3 class="card-title"><i data-i="chat"></i> Leave your feedback</h3>
+          <div class="fb-rate">
+            <span class="fb-label">Your rating</span>
+            <div class="stars-input" id="starsInput" role="radiogroup" aria-label="Rating"></div>
+            <span class="fb-rate-text" id="rateText">Tap a star</span>
+          </div>
+          <div class="fb-row">
+            <label class="field"><i data-i="user"></i><input id="fbName" name="name" maxlength="60" placeholder="Your name" required /></label>
+            <label class="field"><i data-i="brief"></i><input id="fbRole" name="role" maxlength="60" placeholder="Your role (optional)" /></label>
+          </div>
+          <label class="field area"><i data-i="heart"></i><textarea id="fbMsg" name="message" rows="4" maxlength="800" placeholder="What did you think of my portfolio?" required></textarea></label>
+          <input type="text" name="website" id="fbHp" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+          <div class="fb-foot"><span class="fb-count" id="fbCount">0 / 800</span><p class="form-msg" id="fbMsgOut" role="status"></p></div>
+          <button class="btn btn-primary block" type="submit">Send feedback <i data-i="send"></i></button>
+        </form>
+      </div>
+      <div class="fb-wall reveal" id="fbWall"></div>
+    </section>
+
     <!-- CONTACT -->
     <section id="contact" class="section contact">
       <div class="contact-info reveal">
@@ -194,7 +225,6 @@
   </div>
 
   <!-- Admin key -->
-  <button class="admin-key" id="adminKey" aria-label="Admin login" title="Admin"></button>
   <div class="modal" id="loginModal" aria-hidden="true">
     <form class="glass modal-box" id="loginForm">
       <h3><i data-i="key"></i> Admin access</h3>

@@ -33,11 +33,12 @@
     { key: "gallery", label: "Work gallery", obj: [["title", "Gallery title", S], ["items", "Images", { t: "list", item: [["image", "Image", { t: "image" }], ["caption", "Caption", S]], blank: { image: "", caption: "New image" } }]] },
     { key: "keySkills", label: "Key skills", strings: true, long: true },
     { key: "certificates", label: "Certificates", list: { item: [["image", "Certificate image", { t: "image" }], ["title", "Title", S], ["text", "Description", TA]], blank: { image: "", title: "New certificate", text: "" } } },
+    { key: "feedback", label: "Feedback", fb: true },
     { key: "contact", label: "Contact", obj: [["heading", "Heading", S], ["text", "Text", TA], ["email", "Email", S], ["phone", "Phone", S], ["location", "Location", S], ["linkedin", "LinkedIn URL", S], ["instagram", "Instagram URL", S], ["motto", "Motto card", S]] },
     { key: "footer", label: "Footer", obj: [["note", "Footer note", S]] },
     { key: "sections", label: "Show / hide sections", toggles: true }
   ];
-  const SEC_TAB = { home: "hero", about: "about", education: "education", skills: "skillCards", experience: "experience", certificates: "certificates", contact: "contact" };
+  const SEC_TAB = { home: "hero", about: "about", education: "education", skills: "skillCards", experience: "experience", certificates: "certificates", feedback: "feedback", contact: "contact" };
 
   let draft = null, tab = "hero", dirty = false, previewT = null;
 
@@ -93,10 +94,56 @@
     if (t.obj) return t.obj.map(function (f) { return field(t.key + "." + f[0], f[1], f[2]); }).join("");
     if (t.list) return list(t.key, t.label, t.list.item, t.list.blank);
     if (t.strings) return strings(t.key, t.label, t.long);
+    if (t.fb) return field("feedback.heading", "Section heading", S) + field("feedback.text", "Intro text", TA) +
+      '<div class="ap-group"><div class="ap-ghead"><span class="ap-label">Feedback inbox — visitors\' submissions</span></div><div id="apInbox"><p class="ap-hint">Loading…</p></div>' +
+      '<button class="ap-btn ghost" id="apInboxRefresh">' + icon("refresh") + "Refresh</button></div>" +
+      list("feedback.items", "Published feedback you added yourself", [["name", "Name", S], ["role", "Who they are", S], ["rating", "Stars (1–5)", { t: "number" }], ["message", "Message", TA]], { name: "", role: "", rating: 5, message: "" });
     if (t.toggles) return '<p class="ap-hint">Hidden sections disappear from the page and the menu.</p>' + Object.keys(draft.sections).map(function (k) {
       return '<label class="ap-toggle"><input type="checkbox" data-tog="' + k + '" ' + (draft.sections[k] !== false ? "checked" : "") + " /><span></span>" + k.charAt(0).toUpperCase() + k.slice(1) + "</label>";
     }).join("");
     return "";
+  }
+
+  /* ---------- feedback inbox ---------- */
+  function stars5(n) { n = Math.max(0, Math.min(5, Math.round(+n || 0))); return "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n); }
+  async function loadInbox() {
+    const box = $("#apInbox"); if (!box) return;
+    const r = $("#apInboxRefresh"); if (r) r.onclick = loadInbox;
+    let rows;
+    try { rows = await Store.feedback.listAll(); }
+    catch (e) { box.innerHTML = '<p class="ap-hint">Couldn\'t load feedback: ' + esc(e.message) + "</p>"; return; }
+    if (!rows.length) { box.innerHTML = '<p class="ap-hint">No feedback submitted yet.' + (Store.mode === "local" ? " In local mode only feedback sent from this browser appears here — connect Supabase (see SETUP.md) to receive feedback from every visitor." : "") + "</p>"; return; }
+    box.innerHTML = rows.map(function (x) {
+      const live = !!x.approved;
+      return '<div class="ap-fb ' + (live ? "" : "pending") + '"><div class="ap-fb-head"><strong>' + esc(x.name) + (x.role ? " · " + esc(x.role) : "") + '</strong><span class="ap-badge ' + (live ? "live" : "wait") + '">' + (live ? "Live" : "Waiting") + '</span></div><div style="color:#fbbf24;letter-spacing:2px">' + stars5(x.rating) + "</div><p>" + esc(x.message) + '</p><div class="ap-fb-actions">' +
+        (live ? '<button class="ap-btn ghost" data-fbhide="' + esc(x.id) + '">' + icon("eye") + "Hide</button>" : '<button class="ap-btn" data-fbok="' + esc(x.id) + '">' + icon("check") + "Approve</button>") +
+        '<button class="ap-btn ghost" data-fbdel="' + esc(x.id) + '">' + icon("trash") + "Delete</button></div></div>";
+    }).join("");
+    const byId = {}; rows.forEach(function (x) { byId[String(x.id)] = x; });
+    $$("[data-fbok]", box).forEach(function (b) {
+      b.onclick = async function () {
+        const x = byId[b.dataset.fbok]; b.disabled = true;
+        try {
+          if (Store.mode === "local") {
+            draft.feedback.items.unshift({ name: x.name, role: x.role || "", rating: x.rating, message: x.message, date: x.created_at });
+            await Store.feedback.remove(x.id); changed(); drawPanel(); App.toast("Approved — save to keep it", "ok");
+          } else { await Store.feedback.setApproved(x.id, true); App.reloadFeedback(); loadInbox(); App.toast("Approved — now live", "ok"); }
+        } catch (e) { App.toast("Couldn't approve: " + e.message, "err"); b.disabled = false; }
+      };
+    });
+    $$("[data-fbhide]", box).forEach(function (b) {
+      b.onclick = async function () {
+        try { await Store.feedback.setApproved(b.dataset.fbhide, false); App.reloadFeedback(); loadInbox(); App.toast("Hidden from the website"); }
+        catch (e) { App.toast("Couldn't hide: " + e.message, "err"); }
+      };
+    });
+    $$("[data-fbdel]", box).forEach(function (b) {
+      b.onclick = async function () {
+        if (!(await App.ask("This feedback will be deleted permanently.", "Delete"))) return;
+        try { await Store.feedback.remove(b.dataset.fbdel); App.reloadFeedback(); loadInbox(); App.toast("Feedback deleted"); }
+        catch (e) { App.toast("Couldn't delete: " + e.message, "err"); }
+      };
+    });
   }
 
   /* ---------- panel ---------- */
@@ -114,6 +161,7 @@
       '<button class="btn btn-outline" id="apLogout">' + icon("logout") + "Log out</button>" +
       (local ? '<button class="ap-link" id="apReset">Reset to original content</button>' : "") + "</div>";
     if (dirty) $("#apSave").classList.add("pulse");
+    if (tab === "feedback") loadInbox();
     $(".ap-body", p).scrollTop = scroll;
     bindPanel();
   }
@@ -205,8 +253,8 @@
 
   /* ---------- login ---------- */
   document.addEventListener("DOMContentLoaded", async function () {
-    const key = $("#adminKey"), modal = $("#loginModal"), form = $("#loginForm"), pass = $("#adminPass"), msg = $("#loginMsg");
-    key.innerHTML = icon("key");
+    const key = $("#adminNav"), modal = $("#loginModal"), form = $("#loginForm"), pass = $("#adminPass"), msg = $("#loginMsg");
+    key.innerHTML = icon("key") + "<span>Admin</span>";
     function openLogin() { modal.classList.add("open"); modal.setAttribute("aria-hidden", "false"); msg.textContent = ""; pass.value = ""; setTimeout(function () { pass.focus(); }, 50); }
     function closeLogin() { modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true"); }
     key.onclick = async function () { if (document.body.classList.contains("admin-on")) openPanel(); else openLogin(); };

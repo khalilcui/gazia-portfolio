@@ -5,13 +5,14 @@ Personal portfolio for **Gazia Hussain**, Biomedical Science student from Luton 
 Built with plain HTML, CSS and JavaScript (no build step) and Three.js.
 
 ## Features
-- **14 colour themes.** The visitor picks one and the whole site, 3D scene and cursor recolour.
-- **3D moving background.** Capsules, tablets, DNA helices and molecules drift and follow the mouse and scroll.
+- **28 colour themes** (Signature, 7 Blues, 7 Turquoise). The visitor picks one and the whole site, 3D scene and cursor recolour.
+- **3D moving background.** Capsules, tablets, DNA helices and molecules drift quickly and travel with the page as you scroll.
 - **3D hero.** A glass "Pharmacy" bottle with orbiting medicines.
 - **Snake cursor** in the theme's colours (desktop only).
 - **3D skills coverflow** with progress bars.
 - **Auto-rotating 3D certificate ring.** Click a certificate to zoom in.
-- **Admin panel** (key icon, bottom-left). Add, edit, delete and reorder every section, and upload photos, certificates and a CV, all without touching code.
+- **Feedback section.** Star ratings, average score and a review wall. New reviews appear after admin approval.
+- **Admin panel** (**Admin** button in the navbar). Add, edit, delete and reorder every section, and upload photos, certificates and a CV, all without touching code.
 - Responsive, with reduced-motion support.
 
 ## Run locally

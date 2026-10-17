@@ -7,13 +7,14 @@ Three.js and the Supabase client are bundled in `/vendor`, so nothing else needs
 
 | Feature | Where |
 |---|---|
-| 14 colour themes (palette button, top right) | `js/themes.js` |
+| 28 colour themes in 3 groups: Signature, Blues, Turquoise (palette button, top right) | `js/themes.js` |
 | 3D moving background: capsules, tablets, DNA, molecules + mouse/scroll parallax | `js/three-scene.js` |
 | 3D hero: glass medicine bottle with orbiting medicines | `js/three-scene.js` |
 | Snake cursor in theme colours (desktop only) | `js/app.js` → `initSnake` |
 | 3D skills coverflow with progress bars | `js/app.js` → `buildCoverflow` |
 | Auto-rotating 3D certificate ring + click-to-zoom lightbox | `js/app.js` → `buildCertRing` |
-| Admin panel (key icon, bottom-left; key: `ghazia4321`) | `js/admin.js`, `js/store.js` |
+| Feedback section: star ratings, review wall, admin approval | `js/app.js` → `renderFeedback`, `js/store.js` |
+| Admin panel (**Admin** button, top-right of the navbar; key: `ghazia4321`) | `js/admin.js`, `js/store.js` |
 | All original content | `js/data.js` |
 
 ```
@@ -53,7 +54,7 @@ At this point the site works fully. The admin panel runs in **local mode** (see 
 ## Admin panel — two modes
 
 ### Local mode (default, no setup)
-- The admin clicks the 🔑 key (bottom-left) → enters `ghazia4321` → the edit panel opens.
+- The admin clicks **Admin** (top-right of the navbar) → enters `ghazia4321` → the edit panel opens.
 - They can edit, add, delete and reorder every section, and upload photos and certificates.
 - **Limitation:** changes are saved only in that browser. To publish them for all visitors:
   click **Export** → it downloads `data.js` → replace `js/data.js` with it → redeploy.
@@ -80,6 +81,23 @@ create policy "Admin can update"  on portfolio for update to authenticated using
 insert into storage.buckets (id, name, public) values ('portfolio', 'portfolio', true);
 create policy "Anyone can view files" on storage.objects for select using (bucket_id = 'portfolio');
 create policy "Admin can upload"      on storage.objects for insert to authenticated with check (bucket_id = 'portfolio');
+
+-- Visitor feedback: anyone can send, only approved feedback is public, admin manages all
+create table feedback (
+  id bigint generated always as identity primary key,
+  name text not null check (char_length(name) between 1 and 60),
+  role text default '' check (char_length(role) <= 60),
+  rating int not null check (rating between 1 and 5),
+  message text not null check (char_length(message) between 3 and 800),
+  approved boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table feedback enable row level security;
+create policy "Visitors can send feedback" on feedback for insert to anon, authenticated with check (approved = false);
+create policy "Anyone can read approved"   on feedback for select using (approved = true);
+create policy "Admin reads all"            on feedback for select to authenticated using (true);
+create policy "Admin updates"              on feedback for update to authenticated using (true);
+create policy "Admin deletes"              on feedback for delete to authenticated using (true);
 ```
 
 3. **Authentication → Users → Add user**
@@ -102,6 +120,14 @@ adminEmail: "admin@gazia-portfolio.com",
 (In local mode, the hash in `js/store.js` would need updating instead.)
 
 ---
+
+## Feedback section
+
+Visitors rate the portfolio (1–5 stars) and leave a message. New feedback stays **hidden until the admin approves it**:
+Admin → **Feedback** tab → **Approve**, **Hide** or **Delete**. Approved reviews show on the site with an average rating and a scrolling review wall.
+
+- **Live mode (Supabase):** feedback from every visitor arrives in the admin inbox.
+- **Local mode:** only feedback sent from the admin's own browser shows in the inbox. Add a Formspree ID (below) to also get each new piece of feedback by email.
 
 ## Contact form
 

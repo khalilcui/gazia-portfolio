@@ -75,6 +75,10 @@
     return new Promise(function (res) { const r = new FileReader(); r.onload = function () { res(r.result); }; r.readAsDataURL(blob); });
   }
 
+  const PENDING_KEY = "gh_feedback_pending_v1";
+  function readPending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); } catch (e) { return []; } }
+  function writePending(list) { try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch (e) {} }
+
   window.Store = {
     mode: mode,
 
@@ -161,6 +165,54 @@
       }
       if (file.size > 1500000) throw new Error("In local mode files must be under 1.5 MB. Paste a link instead, or connect Supabase.");
       return blobToDataURL(file);
+    },
+
+    /* ---------- Visitor feedback ---------- */
+    feedback: {
+      // Visitor submits feedback. Always lands as "pending" until the admin approves it.
+      submit: async function (f) {
+        const row = { name: f.name.slice(0, 60), role: (f.role || "").slice(0, 60), rating: Math.max(1, Math.min(5, f.rating | 0)), message: f.message.slice(0, 800) };
+        if (CFG.formspreeId) {
+          try { await fetch("https://formspree.io/f/" + CFG.formspreeId, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ _subject: "New portfolio feedback (" + row.rating + "/5)" }, row)) }); } catch (e) {}
+        }
+        if (mode === "supabase") {
+          const c = await client();
+          const { error } = await c.from("feedback").insert(row);
+          if (error) throw new Error(error.message);
+          return;
+        }
+        const list = readPending(); list.unshift(Object.assign({ id: "l" + Date.now(), created_at: new Date().toISOString(), approved: false }, row));
+        writePending(list.slice(0, 100));
+      },
+      // Approved feedback for everyone (Supabase mode).
+      listPublic: async function () {
+        if (mode !== "supabase") return [];
+        try {
+          const c = await client();
+          const { data, error } = await c.from("feedback").select("id,name,role,rating,message,created_at").eq("approved", true).order("created_at", { ascending: false }).limit(60);
+          return error ? [] : data;
+        } catch (e) { return []; }
+      },
+      // Admin inbox: everything submitted.
+      listAll: async function () {
+        if (mode !== "supabase") return readPending();
+        const c = await client();
+        const { data, error } = await c.from("feedback").select("*").order("created_at", { ascending: false }).limit(200);
+        if (error) throw new Error(error.message);
+        return data;
+      },
+      setApproved: async function (id, val) {
+        if (mode !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
+        const c = await client();
+        const { error } = await c.from("feedback").update({ approved: val }).eq("id", id);
+        if (error) throw new Error(error.message);
+      },
+      remove: async function (id) {
+        if (mode !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
+        const c = await client();
+        const { error } = await c.from("feedback").delete().eq("id", id);
+        if (error) throw new Error(error.message);
+      }
     },
 
     exportDataJs: function (content) {

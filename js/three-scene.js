@@ -108,8 +108,8 @@
       obj.position.set((Math.random() - 0.5) * 32, (Math.random() - 0.5) * 22, -3 - Math.random() * 9);
       obj.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
       obj.userData = {
-        v: new T.Vector3((Math.random() - 0.5) * 0.012, (Math.random() - 0.5) * 0.012, (Math.random() - 0.5) * 0.006),
-        r: new T.Vector3((Math.random() - 0.5) * 0.012, (Math.random() - 0.5) * 0.014, (Math.random() - 0.5) * 0.01),
+        v: new T.Vector3((Math.random() - 0.5) * 0.032, (Math.random() - 0.5) * 0.032, (Math.random() - 0.5) * 0.012),
+        r: new T.Vector3((Math.random() - 0.5) * 0.03, (Math.random() - 0.5) * 0.034, (Math.random() - 0.5) * 0.024),
         phase: Math.random() * 6.28
       };
       bg.scene.add(obj); bg.items.push(obj);
@@ -117,7 +117,7 @@
     // DNA helices on both sides
     const d1 = dna(small ? 2 : 3, mA1, mA2, mA3); d1.position.set(-15, 0, -8); d1.rotation.z = 0.5;
     const d2 = dna(small ? 2 : 3, mA2, mA1, mA3); d2.position.set(15.5, 1, -9); d2.rotation.z = -0.45;
-    d1.userData = { spin: 0.004 }; d2.userData = { spin: -0.004 };
+    d1.userData = { spin: 0.012, par: 0.9 }; d2.userData = { spin: -0.012, par: 1.15 };
     bg.scene.add(d1, d2); bg.dnas = [d1, d2];
 
     // Sparkle particles
@@ -228,44 +228,55 @@
   window.addEventListener("resize", resize);
   resize();
 
-  let running = true, t0 = performance.now();
+  let running = true, t0 = performance.now(), lastScroll = window.scrollY, scrollVel = 0;
   document.addEventListener("visibilitychange", function () { running = !document.hidden; if (running) loop(); });
 
   function loop() {
     if (!running) return;
     const t = (performance.now() - t0) / 1000;
     mouse.x += (mouse.tx - mouse.x) * 0.05; mouse.y += (mouse.ty - mouse.y) * 0.05;
-    const sy = window.scrollY / Math.max(1, window.innerHeight);
+    // Scroll speed (px per frame), smoothed, drives the background
+    const dy = window.scrollY - lastScroll; lastScroll = window.scrollY;
+    scrollVel += (dy - scrollVel) * 0.25;
+    const pxToWorld = 26 / Math.max(1, window.innerHeight);
+    const boost = Math.min(Math.abs(scrollVel) * 0.02, 1.6);
 
     if (bg.renderer) {
       if (!reduce) {
         bg.items.forEach(function (o) {
-          const u = o.userData;
-          o.position.add(u.v); o.position.y += Math.sin(t * 0.8 + u.phase) * 0.004;
-          o.rotation.x += u.r.x; o.rotation.y += u.r.y; o.rotation.z += u.r.z;
+          const u = o.userData, depth = 1.25 + (o.position.z + 12) / 10 * 0.6;
+          o.position.add(u.v);
+          o.position.y += Math.sin(t * 1.4 + u.phase) * 0.008 + scrollVel * pxToWorld * depth;
+          const spin = 1 + boost * 4;
+          o.rotation.x += u.r.x * spin; o.rotation.y += u.r.y * spin; o.rotation.z += u.r.z * spin;
           if (o.position.x > 16) o.position.x = -16; if (o.position.x < -16) o.position.x = 16;
-          if (o.position.y > 11) o.position.y = -11; if (o.position.y < -11) o.position.y = 11;
+          if (o.position.y > 12) o.position.y -= 24; if (o.position.y < -12) o.position.y += 24;
           if (o.position.z > -2) u.v.z = -Math.abs(u.v.z); if (o.position.z < -12) u.v.z = Math.abs(u.v.z);
         });
-        bg.dnas.forEach(function (d) { d.rotation.y += d.userData.spin; });
-        bg.points.rotation.y = t * 0.02;
+        bg.dnas.forEach(function (d) {
+          d.rotation.y += d.userData.spin * (1 + boost * 5);
+          d.position.y += scrollVel * pxToWorld * d.userData.par;
+          if (d.position.y > 20) d.position.y -= 40; if (d.position.y < -20) d.position.y += 40;
+        });
+        bg.points.rotation.y = t * 0.05;
+        bg.points.position.y = (bg.points.position.y + scrollVel * pxToWorld * 0.6) % 20;
       }
       bg.camera.position.x = mouse.x * 2.2;
-      bg.camera.position.y = -mouse.y * 1.6 - sy * 1.4;
-      bg.camera.lookAt(0, -sy * 1.4, 0);
+      bg.camera.position.y = -mouse.y * 1.6;
+      bg.camera.lookAt(0, 0, 0);
       bg.renderer.render(bg.scene, bg.camera);
     }
 
     if (hero.renderer && window.scrollY < window.innerHeight * 1.2) {
       if (!reduce) {
-        hero.bottle.rotation.y = Math.sin(t * 0.45) * 0.45 + mouse.x * 0.35;
-        hero.bottle.position.y = -0.3 + Math.sin(t * 1.2) * 0.12;
+        hero.bottle.rotation.y = Math.sin(t * 0.8) * 0.45 + mouse.x * 0.35;
+        hero.bottle.position.y = -0.3 + Math.sin(t * 1.8) * 0.14;
         hero.orbit.forEach(function (o) {
-          const u = o.userData; u.a += u.s * 0.012;
-          o.position.set(Math.cos(u.a) * u.R, u.y + Math.sin(t + u.bob) * 0.25, Math.sin(u.a) * u.R * 0.7);
-          o.rotation.x += u.spin; o.rotation.z += u.spin * 0.7;
+          const u = o.userData; u.a += u.s * 0.03;
+          o.position.set(Math.cos(u.a) * u.R, u.y + Math.sin(t * 1.6 + u.bob) * 0.3, Math.sin(u.a) * u.R * 0.7);
+          o.rotation.x += u.spin * 2; o.rotation.z += u.spin * 1.4;
         });
-        hero.dna.rotation.y += 0.008;
+        hero.dna.rotation.y += 0.022;
       }
       hero.scene.rotation.x = mouse.y * 0.12;
       hero.scene.rotation.y = mouse.x * 0.18;

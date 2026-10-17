@@ -25,9 +25,12 @@
     try { localStorage.setItem("gh_theme", theme.id); } catch (e) {}
   }
   function buildThemePicker() {
-    $("#themeGrid").innerHTML = window.THEMES.map(function (t) {
-      return '<button class="swatch" data-id="' + t.id + '" title="' + t.name + '"><span style="background:linear-gradient(135deg,' + t.a1 + "," + t.a2 + ')"></span>' + t.name + "</button>";
-    }).join("");
+    let html = "";
+    window.THEMES.forEach(function (t) {
+      if (t.group) html += '<p class="theme-group">' + t.group + "</p>";
+      html += '<button class="swatch" data-id="' + t.id + '" title="' + t.name + '"><span style="background:linear-gradient(135deg,' + t.a1 + "," + t.a2 + ')"></span>' + t.name + "</button>";
+    });
+    $("#themeGrid").innerHTML = html;
     $$(".swatch").forEach(function (b) { b.onclick = function () { applyTheme(b.dataset.id); }; });
     $("#themeBtn").innerHTML = icon("palette");
     $("#themeClose").innerHTML = icon("x");
@@ -116,6 +119,8 @@
     $$(".copy").forEach(function (b) { b.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy); toast("Email copied"); }; });
     $("#contactMotto").innerHTML = icon("heart") + "<p>" + esc(ct.motto) + "</p>";
     $("#footNote").textContent = (C.footer && C.footer.note) || "";
+
+    renderFeedback();
 
     // Section visibility
     const vis = C.sections || {};
@@ -258,7 +263,7 @@
     const N = 20, pts = []; const m = { x: innerWidth / 2, y: innerHeight / 2 };
     for (let i = 0; i < N; i++) pts.push({ x: m.x, y: m.y });
     let hot = false, visible = false, down = false;
-    addEventListener("pointermove", function (e) { m.x = e.clientX; m.y = e.clientY; visible = true; hot = !!e.target.closest("a,button,.cert,.flow-card,.gal,input,textarea,select,label"); }, { passive: true });
+    addEventListener("pointermove", function (e) { m.x = e.clientX; m.y = e.clientY; visible = true; hot = !!e.target.closest("a,button,.stars-input,.cert,.flow-card,.gal,input,textarea,select,label"); }, { passive: true });
     addEventListener("pointerdown", function () { down = true; }); addEventListener("pointerup", function () { down = false; });
     document.addEventListener("mouseleave", function () { visible = false; });
     function hex(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
@@ -279,6 +284,75 @@
       }
       requestAnimationFrame(loop);
     })();
+  }
+
+  /* ---------------- Feedback ---------------- */
+  const STAR = '<svg viewBox="0 0 24 24" class="star" aria-hidden="true"><path d="M12 2.8l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.36l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93z"/></svg>';
+  const RATE_TEXT = ["Tap a star", "Poor", "Fair", "Good", "Very good", "Excellent"];
+  let remoteFb = [], fbRating = 0;
+  function starRow(n) { let h = ""; for (let i = 1; i <= 5; i++) h += '<span class="' + (i <= Math.round(n) ? "on" : "") + '">' + STAR + "</span>"; return '<span class="stars" aria-label="' + n + ' out of 5">' + h + "</span>"; }
+  function fbDate(d) { if (!d) return ""; const x = new Date(d); return isNaN(x) ? "" : x.toLocaleDateString(undefined, { month: "short", year: "numeric" }); }
+  function renderFeedback() {
+    if (!C) return;
+    const f = C.feedback || { items: [] };
+    $("#fbHeading").innerHTML = esc(f.heading || "").replace(/(\S+)$/, '<span class="grad">$1</span>');
+    $("#fbText").textContent = f.text || "";
+    const items = (f.items || []).concat(remoteFb).filter(function (x) { return x && x.message; });
+    const n = items.length;
+    if (n) {
+      const avg = items.reduce(function (a, x) { return a + (+x.rating || 0); }, 0) / n;
+      const bars = [5, 4, 3, 2, 1].map(function (k) {
+        const c = items.filter(function (x) { return Math.round(+x.rating) === k; }).length;
+        return '<div class="fb-bar"><span>' + k + '</span>' + STAR + '<div class="track"><i style="--w:' + Math.round(c / n * 100) + '%"></i></div><b>' + c + "</b></div>";
+      }).join("");
+      $("#fbSummary").innerHTML = '<p class="fb-avg">' + avg.toFixed(1) + '<small>/5</small></p>' + starRow(avg) + '<p class="fb-total">Based on ' + n + " review" + (n > 1 ? "s" : "") + '</p><div class="fb-bars">' + bars + "</div>";
+    } else {
+      $("#fbSummary").innerHTML = '<div class="fb-empty-ico">' + icon("star") + '</div><p class="fb-avg small">No reviews yet</p>' + starRow(0) + '<p class="fb-total">Be the first to share what you think of this portfolio.</p>';
+    }
+    const card = function (x) {
+      const ini = esc((x.name || "?").trim().split(/\s+/).map(function (w) { return w[0]; }).slice(0, 2).join("").toUpperCase());
+      return '<article class="glass fb-card"><span class="fb-quote">&ldquo;</span>' + starRow(+x.rating || 0) + '<p class="fb-text">' + esc(x.message) + '</p><div class="fb-who"><span class="fb-av">' + ini + "</span><div><strong>" + esc(x.name) + "</strong><small>" + esc([x.role, fbDate(x.created_at || x.date)].filter(Boolean).join(" · ")) + "</small></div></div></article>";
+    };
+    const wall = $("#fbWall");
+    if (!n) { wall.innerHTML = ""; wall.className = "fb-wall"; return; }
+    if (n >= 3 && !reduce) {
+      const cards = items.map(card).join("");
+      wall.className = "fb-wall marquee";
+      wall.innerHTML = '<div class="fb-track" style="--dur:' + Math.max(25, n * 8) + 's">' + cards + cards + "</div>";
+    } else { wall.className = "fb-wall static"; wall.innerHTML = items.map(card).join(""); }
+  }
+  async function loadRemoteFeedback() { remoteFb = await Store.feedback.listPublic(); renderFeedback(); }
+  function initFeedbackForm() {
+    const box = $("#starsInput"), txt = $("#rateText"), form = $("#fbForm"), out = $("#fbMsgOut"), msg = $("#fbMsg");
+    box.innerHTML = [1, 2, 3, 4, 5].map(function (i) { return '<button type="button" role="radio" aria-checked="false" aria-label="' + i + " star" + (i > 1 ? "s" : "") + " — " + RATE_TEXT[i] + '" data-v="' + i + '">' + STAR + "</button>"; }).join("");
+    const btns = $$("button", box);
+    function paint(v) { btns.forEach(function (b) { b.classList.toggle("on", +b.dataset.v <= v); }); txt.textContent = RATE_TEXT[v] || RATE_TEXT[0]; }
+    btns.forEach(function (b) {
+      b.addEventListener("mouseenter", function () { paint(+b.dataset.v); });
+      b.addEventListener("click", function () { fbRating = +b.dataset.v; btns.forEach(function (x) { x.setAttribute("aria-checked", String(+x.dataset.v === fbRating)); }); paint(fbRating); b.classList.add("pop"); setTimeout(function () { b.classList.remove("pop"); }, 400); out.textContent = ""; out.className = "form-msg"; });
+    });
+    box.addEventListener("mouseleave", function () { paint(fbRating); });
+    msg.addEventListener("input", function () { $("#fbCount").textContent = msg.value.length + " / 800"; });
+    form.addEventListener("input", function () { if (out.classList.contains("err")) { out.textContent = ""; out.className = "form-msg"; } });
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      if ($("#fbHp").value) return;
+      const name = $("#fbName").value.trim(), role = $("#fbRole").value.trim(), message = msg.value.trim();
+      if (!fbRating) { out.textContent = "Choose a star rating first."; out.className = "form-msg err"; return; }
+      if (!name) { out.textContent = "Add your name."; out.className = "form-msg err"; $("#fbName").focus(); return; }
+      if (message.length < 3) { out.textContent = "Write a short message (at least 3 characters)."; out.className = "form-msg err"; msg.focus(); return; }
+      let last = 0; try { last = +localStorage.getItem("gh_fb_last") || 0; } catch (err) {}
+      if (Date.now() - last < 60000) { out.textContent = "Thanks! Please wait a minute before sending more feedback."; out.className = "form-msg err"; return; }
+      const btn = $("button[type=submit]", form); btn.disabled = true; out.textContent = "Sending…"; out.className = "form-msg";
+      try {
+        await Store.feedback.submit({ name: name, role: role, rating: fbRating, message: message });
+        try { localStorage.setItem("gh_fb_last", String(Date.now())); } catch (err) {}
+        form.reset(); fbRating = 0; paint(0); $("#fbCount").textContent = "0 / 800";
+        out.textContent = "Thank you! Your feedback was sent and will appear here once it's approved."; out.className = "form-msg ok";
+        form.classList.add("sent"); setTimeout(function () { form.classList.remove("sent"); }, 1200);
+      } catch (err) { out.textContent = "Couldn't send your feedback. Check your connection and try again."; out.className = "form-msg err"; }
+      btn.disabled = false;
+    });
   }
 
   /* ---------------- Nav, reveal, tilt, form ---------------- */
@@ -373,14 +447,15 @@
     buildThemePicker();
     let saved = null; try { saved = localStorage.getItem("gh_theme"); } catch (e) {}
     applyTheme(saved || "electric");
-    initFlowControls(); initRingControls(); initLightbox(); initNav(); initForm(); initSnake();
+    initFlowControls(); initRingControls(); initLightbox(); initNav(); initForm(); initFeedbackForm(); initSnake();
     render(Store.initial());
     hydrateIcons();
     if (window.Scene3D) { window.Scene3D.resize(); window.Scene3D.start(); }
     setTimeout(function () { $("#loader").classList.add("done"); }, 500);
     const live = await Store.remote();
     if (live) render(live);
+    loadRemoteFeedback();
   });
 
-  window.App = { ask: ask, render: render, get: function () { return C; }, toast: toast, esc: esc, theme: function () { return theme; } };
+  window.App = { ask: ask, reloadFeedback: loadRemoteFeedback, render: render, get: function () { return C; }, toast: toast, esc: esc, theme: function () { return theme; } };
 })();

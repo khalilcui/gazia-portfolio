@@ -561,3 +561,24 @@ body.light .ap-fb { background: #fff; }
 .ap-badge.wait { background: rgba(245,158,11,.2); color: #fcd34d; } .ap-badge.live { background: rgba(16,185,129,.2); color: #6ee7b7; }
 body.light .ap-badge.wait { color: #92400e; } body.light .ap-badge.live { color: #047857; }
 .ap-fb-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ===== Contact: pharmacy desk scene ===== */
+.contact { grid-template-columns: 1.05fr 1fr 1.3fr; gap: 26px; }
+.contact-list span { font-size: 15px; overflow-wrap: anywhere; }
+.contact-visual { position: relative; height: 600px; display: block; margin-right: -40px; }
+#contact3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  -webkit-mask-image: radial-gradient(ellipse 62% 68% at 52% 55%, #000 58%, transparent 100%); mask-image: radial-gradient(ellipse 62% 68% at 52% 55%, #000 58%, transparent 100%); }
+.contact-visual .motto { position: absolute; top: 3%; left: 36%; z-index: 2; width: min(220px, 52%); padding: 18px 16px 16px;
+  transform: translateX(-30%) perspective(700px) rotateY(-18deg) rotateX(6deg); animation: signFloat 6s ease-in-out infinite;
+  background: linear-gradient(160deg, rgba(var(--a2-rgb), .18), rgba(var(--a1-rgb), .06)); border: 1.5px solid rgba(var(--a2-rgb), .7);
+  box-shadow: 0 0 30px rgba(var(--a1-rgb), .55), inset 0 0 24px rgba(var(--a2-rgb), .2); }
+.contact-visual .motto p { font-size: 30px; line-height: 1.05; }
+.contact-visual .motto .ico { width: 30px; height: 30px; margin: 10px auto 0; order: 2; }
+.contact-visual .motto { display: flex; flex-direction: column; }
+@keyframes signFloat { 50% { transform: translateX(-30%) translateY(-10px) perspective(700px) rotateY(-14deg) rotateX(6deg); } }
+@media (max-width: 1100px) {
+  .contact { grid-template-columns: 1fr 1.1fr; }
+  .contact-visual { display: block; grid-column: 1 / -1; height: 460px; margin: 0; order: 3; }
+}
+@media (max-width: 960px) { .contact { grid-template-columns: 1fr; } .contact-visual { grid-column: auto; height: 420px; } }
+@media (max-width: 640px) { .contact-visual { height: 360px; margin: 0 -14px; } .contact-visual .motto p { font-size: 22px; } .contact-visual .motto { padding: 12px; width: 160px; left: 30%; } }

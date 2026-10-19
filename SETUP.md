@@ -124,10 +124,12 @@ adminEmail: "admin@gazia-portfolio.com",
 
 ## Feedback section
 
-Visitors rate the portfolio (1–5 stars) and leave a message. New feedback stays **hidden until the admin approves it**:
-Admin → **Feedback** tab → **Approve**, **Hide** or **Delete**. Approved reviews show on the site with an average rating and a scrolling review wall.
+Visitors rate the portfolio (1–5 stars) and leave a message. **New feedback shows on the website straight away**, with an average rating and a scrolling review wall.
+The admin manages it in Admin → **Feedback** tab: **Hide** (take it off the site), **Approve** (show a hidden one again) or **Delete**.
+That tab also says whether feedback storage is connected, and if not, what to fix.
 
-When there are reviews waiting, the **Admin** button shows an orange number after login.
+Prefer to check every review before it goes live? In Vercel → Settings → Environment Variables add
+`FEEDBACK_REQUIRE_APPROVAL` = `1` and redeploy. New feedback then stays hidden until approved, and the Admin button shows how many are waiting.
 
 ### ⚠️ Required once: connect feedback storage in Vercel (2 minutes)
 
@@ -140,6 +142,8 @@ No new account is needed. Until this is done, feedback only stays in the visitor
 4. Go to **Deployments** → the newest deployment → **⋯** → **Redeploy**.
 
 To check it worked, open `https://<your-site>/api/feedback`. It should show `{"enabled":true,...}`.
+If it shows `"enabled":false`, the storage isn't connected or the site wasn't redeployed after connecting it.
+If the page says 404, the latest code from GitHub isn't deployed yet.
 
 The server checks the admin key itself (only its SHA-256 hash is stored). To change the key later, add an environment variable
 `ADMIN_KEY_SHA256` with the SHA-256 hash of the new key, and update `ADMIN_HASH` in `js/store.js` to match.

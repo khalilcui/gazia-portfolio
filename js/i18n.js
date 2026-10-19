@@ -177,6 +177,8 @@
     "Write a short message (at least 3 characters).": "Schreiben Sie eine kurze Nachricht (mindestens 3 Zeichen).",
     "Thanks! Please wait a minute before sending more feedback.": "Danke! Bitte warten Sie eine Minute, bevor Sie weiteres Feedback senden.",
     "Sending…": "Wird gesendet …",
+    "Thank you! Your feedback is now live on this page.": "Vielen Dank! Ihr Feedback ist jetzt auf dieser Seite sichtbar.",
+    "Feedback isn't available right now. Please try again later.": "Feedback ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.",
     "Thank you! Your feedback was sent and will appear here once it's approved.": "Vielen Dank! Ihr Feedback wurde gesendet und erscheint hier, sobald es freigegeben wurde.",
     "Couldn't send your feedback. Check your connection and try again.": "Ihr Feedback konnte nicht gesendet werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
 

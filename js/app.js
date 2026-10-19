@@ -345,12 +345,17 @@
       if (Date.now() - last < 60000) { out.textContent = "Thanks! Please wait a minute before sending more feedback."; out.className = "form-msg err"; return; }
       const btn = $("button[type=submit]", form); btn.disabled = true; out.textContent = "Sending…"; out.className = "form-msg";
       try {
-        await Store.feedback.submit({ name: name, role: role, rating: fbRating, message: message });
+        const res = await Store.feedback.submit({ name: name, role: role, rating: fbRating, message: message, website: $("#fbHp").value });
         try { localStorage.setItem("gh_fb_last", String(Date.now())); } catch (err) {}
         form.reset(); fbRating = 0; paint(0); $("#fbCount").textContent = "0 / 800";
-        out.textContent = "Thank you! Your feedback was sent and will appear here once it's approved."; out.className = "form-msg ok";
+        if (res && res.approved) { out.textContent = "Thank you! Your feedback is now live on this page."; loadRemoteFeedback(); }
+        else out.textContent = "Thank you! Your feedback was sent and will appear here once it's approved.";
+        out.className = "form-msg ok";
         form.classList.add("sent"); setTimeout(function () { form.classList.remove("sent"); }, 1200);
-      } catch (err) { out.textContent = "Couldn't send your feedback. Check your connection and try again."; out.className = "form-msg err"; }
+      } catch (err) {
+        out.textContent = err && err.code === "not-connected" ? "Feedback isn't available right now. Please try again later." : "Couldn't send your feedback. Check your connection and try again.";
+        out.className = "form-msg err";
+      }
       btn.disabled = false;
     });
   }

@@ -11,7 +11,7 @@ Built with plain HTML, CSS and JavaScript (no build step) and Three.js.
 - **Snake cursor** in the theme's colours (desktop only).
 - **3D skills coverflow** with progress bars.
 - **Auto-rotating 3D certificate ring.** Click a certificate to zoom in.
-- **Feedback section.** Star ratings, average score and a review wall. New reviews appear after admin approval. Stored with Vercel Blob through `api/feedback.js` (setup in SETUP.md).
+- **Feedback section.** Star ratings, average score and a review wall. New reviews appear straight away; the admin can hide or delete them. Stored with Vercel Blob through `api/feedback.js` (setup in SETUP.md).
 - **English / German** language switch, with automatic German for German-language browsers.
 - **Admin panel** (**Admin** button in the navbar). Add, edit, delete and reorder every section, and upload photos, certificates and a CV, all without touching code.
 - Responsive, with reduced-motion support.

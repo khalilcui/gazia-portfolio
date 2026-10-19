@@ -75,7 +75,7 @@
     return new Promise(function (res) { const r = new FileReader(); r.onload = function () { res(r.result); }; r.readAsDataURL(blob); });
   }
 
-  let fbModeP = null, fbPublicCache = null;
+  let fbModeP = null, fbPublicCache = null, fbStatus = "", fbNeedsApproval = true;
   function adminKey() { try { return sessionStorage.getItem("gh_key") || ""; } catch (e) { return ""; } }
   async function adminFetch(path, init) {
     const k = adminKey();
@@ -184,9 +184,14 @@
       // server (Vercel Blob) → this browser only (fallback, e.g. local testing).
       mode: function () {
         if (mode === "supabase") return Promise.resolve("supabase");
-        if (!fbModeP) fbModeP = fetch("api/feedback", { headers: { accept: "application/json" } })
-          .then(function (r) { return r.json().then(function (j) { if (r.ok && j.enabled) { fbPublicCache = j.items || []; return "server"; } return "local"; }); })
-          .catch(function () { return "local"; });
+        if (!fbModeP) fbModeP = fetch("api/feedback", { headers: { accept: "application/json" }, cache: "no-store" })
+          .then(function (r) {
+            fbStatus = r.status === 404 ? "The feedback server isn't deployed. Redeploy the latest version from GitHub in Vercel."
+              : r.status === 503 ? "Blob storage isn't connected. In Vercel: Storage → Blob → connect to this project, then Redeploy."
+              : "";
+            return r.json().then(function (j) { if (r.ok && j.enabled) { fbPublicCache = j.items || []; return "server"; } return "local"; });
+          })
+          .catch(function () { fbStatus = fbStatus || "The feedback server couldn't be reached."; return "local"; });
         return fbModeP;
       },
       // Visitor submits feedback. Always lands as "pending" until the admin approves it.
@@ -200,22 +205,26 @@
           const c = await client();
           const { error } = await c.from("feedback").insert(row);
           if (error) throw new Error(error.message);
-          return;
+          return { approved: false };
         }
         if (m === "server") {
           const r = await fetch("api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ website: f.website || "" }, row)) });
-          if (!r.ok) throw new Error((await r.json().catch(function () { return {}; })).error || "Couldn't send feedback");
-          return;
+          const j = await r.json().catch(function () { return {}; });
+          if (!r.ok) throw new Error(j.error || "Couldn't send feedback");
+          return { approved: !!j.approved };
         }
-        const list = readPending(); list.unshift(Object.assign({ id: "l" + Date.now(), created_at: new Date().toISOString(), approved: false }, row));
-        writePending(list.slice(0, 100));
+        // No shared storage: don't pretend it was sent (it would only stay in this browser).
+        const err = new Error("not-connected"); err.code = "not-connected"; throw err;
       },
+      // Why feedback isn't working ("" when it is), for the admin panel.
+      needsApproval: function () { return mode === "supabase" || fbNeedsApproval; },
+      status: async function () { const m = await this.mode(); return { mode: m, problem: m === "local" ? (fbStatus || "Feedback storage isn't connected.") : "" }; },
       // Approved feedback for everyone.
       listPublic: async function () {
         const m = await this.mode();
         if (m === "server") {
           if (fbPublicCache) { const c = fbPublicCache; fbPublicCache = null; return c; }
-          try { const r = await fetch("api/feedback", { cache: "no-store" }); const j = await r.json(); return j.items || []; } catch (e) { return []; }
+          try { const r = await fetch("api/feedback?t=" + Date.now(), { cache: "no-store" }); const j = await r.json(); return j.items || []; } catch (e) { return []; }
         }
         if (m !== "supabase") return [];
         try {
@@ -227,7 +236,7 @@
       // Admin inbox: everything submitted.
       listAll: async function () {
         const m = await this.mode();
-        if (m === "server") return (await adminFetch("api/feedback?all=1", { method: "GET" })).items || [];
+        if (m === "server") { const j = await adminFetch("api/feedback?all=1", { method: "GET" }); fbNeedsApproval = !!j.requireApproval; return j.items || []; }
         if (m !== "supabase") return readPending();
         const c = await client();
         const { data, error } = await c.from("feedback").select("*").order("created_at", { ascending: false }).limit(200);

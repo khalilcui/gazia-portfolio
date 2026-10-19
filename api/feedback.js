@@ -6,7 +6,7 @@
 
    GET    /api/feedback                → approved feedback (public)
    GET    /api/feedback?all=1          → everything (admin)
-   POST   /api/feedback                → new feedback, saved as pending (public)
+   POST   /api/feedback                → new feedback, live at once (or pending, see REQUIRE_APPROVAL)
    PATCH  /api/feedback  {id, approved}→ approve / hide (admin)
    DELETE /api/feedback?id=…           → delete (admin)
 
@@ -18,6 +18,9 @@ const crypto = require("crypto");
 const API = process.env.VERCEL_BLOB_API_URL || "https://blob.vercel-storage.com";
 const API_VERSION = "9";
 const ADMIN_HASH = process.env.ADMIN_KEY_SHA256 || "d638a8e769d532b698c567d8e470f3e4a82e00dba355e2c8bc99f49343f3965b";
+// New feedback goes live straight away; the admin can hide or delete it.
+// Set the env var FEEDBACK_REQUIRE_APPROVAL=1 in Vercel to hold new feedback for approval instead.
+const REQUIRE_APPROVAL = process.env.FEEDBACK_REQUIRE_APPROVAL === "1";
 const PENDING = "feedback/pending/";
 const APPROVED = "feedback/approved/";
 
@@ -112,10 +115,10 @@ module.exports = async function handler(req, res) {
         if (!isAdmin(req)) return send(res, 401, { error: "Wrong admin key." });
         const [p, a] = await Promise.all([listAll(PENDING), listAll(APPROVED)]);
         const items = (await readItems(p, false)).concat(await readItems(a, true));
-        return send(res, 200, { enabled: true, items: sortNewest(items) });
+        return send(res, 200, { enabled: true, requireApproval: REQUIRE_APPROVAL, items: sortNewest(items) });
       }
       const items = await readItems(await listAll(APPROVED), true);
-      return send(res, 200, { enabled: true, items: sortNewest(items).slice(0, 100) }, "public, s-maxage=20, stale-while-revalidate=60");
+      return send(res, 200, { enabled: true, requireApproval: REQUIRE_APPROVAL, items: sortNewest(items).slice(0, 100) });
     }
 
     if (req.method === "POST") {
@@ -125,8 +128,8 @@ module.exports = async function handler(req, res) {
       const rating = Math.max(1, Math.min(5, parseInt(b.rating, 10) || 0));
       if (!name || message.length < 3 || !parseInt(b.rating, 10)) return send(res, 400, { error: "Name, rating and a message are required." });
       const id = Date.now().toString(36) + "-" + crypto.randomBytes(5).toString("hex");
-      await putJson(PENDING + id + ".json", { id: id, name: name, role: role, rating: rating, message: message, created_at: new Date().toISOString() });
-      return send(res, 201, { ok: true });
+      await putJson((REQUIRE_APPROVAL ? PENDING : APPROVED) + id + ".json", { id: id, name: name, role: role, rating: rating, message: message, created_at: new Date().toISOString() });
+      return send(res, 201, { ok: true, approved: !REQUIRE_APPROVAL });
     }
 
     if (req.method === "PATCH") {

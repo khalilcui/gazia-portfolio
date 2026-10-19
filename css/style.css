@@ -610,3 +610,5 @@ body.light .ap-badge.wait { color: #92400e; } body.light .ap-badge.live { color:
   .nav-admin span { display: none; }
 }
 @media (max-width: 420px) { .brand-text strong { font-size: 14px; } }
+.ap-fb-note.err { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.5); } .ap-fb-note.err .ico { color: #ef4444; }
+.ap-fb-note.ok { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.45); } .ap-fb-note.ok .ico { color: #10b981; }

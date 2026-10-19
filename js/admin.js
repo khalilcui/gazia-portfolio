@@ -112,13 +112,16 @@
     let rows;
     try { rows = await Store.feedback.listAll(); }
     catch (e) { box.innerHTML = '<p class="ap-hint">Couldn\'t load feedback: ' + esc(e.message) + "</p>"; return; }
-    const fm = await Store.feedback.mode();
-    if (!rows.length) { box.innerHTML = '<p class="ap-hint">No feedback submitted yet.' + (fm === "local" ? " Feedback storage isn't connected, so only feedback sent from this browser appears here. Connect Blob storage in Vercel (see SETUP.md) to receive feedback from every visitor." : "") + "</p>"; return; }
+    const fm = await Store.feedback.mode(), st = await Store.feedback.status();
+    const statusHtml = st.problem
+      ? '<p class="ap-fb-note err">' + icon("x") + "<span><strong>Feedback storage is not working.</strong> " + esc(st.problem) + " Until this is fixed, visitors can't send feedback.</span></p>"
+      : (fm === "server" ? '<p class="ap-fb-note ok">' + icon("check") + "<span><strong>Feedback storage connected.</strong> New feedback appears on the website straight away. Use <b>Hide</b> or <b>Delete</b> for anything you don't want shown.</span></p>" : "");
+    if (!rows.length) { box.innerHTML = statusHtml + '<p class="ap-hint">No feedback submitted yet.</p>'; return; }
     const waiting = rows.filter(function (x) { return !x.approved; }).length;
     updateBadge();
-    box.innerHTML = (waiting ? '<p class="ap-fb-note">' + icon("bell") + "<span><strong>" + waiting + " waiting for approval.</strong> New feedback stays hidden until you click <b>Approve</b>. Then it shows on the website.</span></p>" : "") + rows.map(function (x) {
+    box.innerHTML = statusHtml + (waiting ? '<p class="ap-fb-note">' + icon("bell") + "<span><strong>" + waiting + " hidden.</strong> Click <b>Approve</b> to show it on the website.</span></p>" : "") + rows.map(function (x) {
       const live = !!x.approved;
-      return '<div class="ap-fb ' + (live ? "" : "pending") + '"><div class="ap-fb-head"><strong>' + esc(x.name) + (x.role ? " · " + esc(x.role) : "") + '</strong><span class="ap-badge ' + (live ? "live" : "wait") + '">' + (live ? "Live" : "Waiting") + '</span></div><div style="color:#fbbf24;letter-spacing:2px">' + stars5(x.rating) + "</div><p>" + esc(x.message) + '</p><div class="ap-fb-actions">' +
+      return '<div class="ap-fb ' + (live ? "" : "pending") + '"><div class="ap-fb-head"><strong>' + esc(x.name) + (x.role ? " · " + esc(x.role) : "") + '</strong><span class="ap-badge ' + (live ? "live" : "wait") + '">' + (live ? "Live" : "Hidden") + '</span></div><div style="color:#fbbf24;letter-spacing:2px">' + stars5(x.rating) + "</div><p>" + esc(x.message) + '</p><div class="ap-fb-actions">' +
         (live ? '<button class="ap-btn ghost" data-fbhide="' + esc(x.id) + '">' + icon("eye") + "Hide</button>" : '<button class="ap-btn" data-fbok="' + esc(x.id) + '">' + icon("check") + "Approve</button>") +
         '<button class="ap-btn ghost" data-fbdel="' + esc(x.id) + '">' + icon("trash") + "Delete</button></div></div>";
     }).join("");
@@ -251,7 +254,7 @@
   async function updateBadge() {
     const btn = $("#adminNav"); if (!btn) return;
     let n = 0;
-    try { n = (await Store.feedback.listAll()).filter(function (x) { return !x.approved; }).length; } catch (e) {}
+    try { const rows = await Store.feedback.listAll(); if (Store.feedback.needsApproval()) n = rows.filter(function (x) { return !x.approved; }).length; } catch (e) {}
     let dot = $(".fb-dot", btn);
     if (!n) { if (dot) dot.remove(); return; }
     if (!dot) { dot = document.createElement("span"); dot.className = "fb-dot"; btn.appendChild(dot); }

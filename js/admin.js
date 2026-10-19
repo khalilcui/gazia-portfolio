@@ -112,8 +112,11 @@
     let rows;
     try { rows = await Store.feedback.listAll(); }
     catch (e) { box.innerHTML = '<p class="ap-hint">Couldn\'t load feedback: ' + esc(e.message) + "</p>"; return; }
-    if (!rows.length) { box.innerHTML = '<p class="ap-hint">No feedback submitted yet.' + (Store.mode === "local" ? " In local mode only feedback sent from this browser appears here — connect Supabase (see SETUP.md) to receive feedback from every visitor." : "") + "</p>"; return; }
-    box.innerHTML = rows.map(function (x) {
+    const fm = await Store.feedback.mode();
+    if (!rows.length) { box.innerHTML = '<p class="ap-hint">No feedback submitted yet.' + (fm === "local" ? " Feedback storage isn't connected, so only feedback sent from this browser appears here. Connect Blob storage in Vercel (see SETUP.md) to receive feedback from every visitor." : "") + "</p>"; return; }
+    const waiting = rows.filter(function (x) { return !x.approved; }).length;
+    updateBadge();
+    box.innerHTML = (waiting ? '<p class="ap-fb-note">' + icon("bell") + "<span><strong>" + waiting + " waiting for approval.</strong> New feedback stays hidden until you click <b>Approve</b>. Then it shows on the website.</span></p>" : "") + rows.map(function (x) {
       const live = !!x.approved;
       return '<div class="ap-fb ' + (live ? "" : "pending") + '"><div class="ap-fb-head"><strong>' + esc(x.name) + (x.role ? " · " + esc(x.role) : "") + '</strong><span class="ap-badge ' + (live ? "live" : "wait") + '">' + (live ? "Live" : "Waiting") + '</span></div><div style="color:#fbbf24;letter-spacing:2px">' + stars5(x.rating) + "</div><p>" + esc(x.message) + '</p><div class="ap-fb-actions">' +
         (live ? '<button class="ap-btn ghost" data-fbhide="' + esc(x.id) + '">' + icon("eye") + "Hide</button>" : '<button class="ap-btn" data-fbok="' + esc(x.id) + '">' + icon("check") + "Approve</button>") +
@@ -124,7 +127,7 @@
       b.onclick = async function () {
         const x = byId[b.dataset.fbok]; b.disabled = true;
         try {
-          if (Store.mode === "local") {
+          if (fm === "local") {
             draft.feedback.items.unshift({ name: x.name, role: x.role || "", rating: x.rating, message: x.message, date: x.created_at });
             await Store.feedback.remove(x.id); changed(); drawPanel(); App.toast("Approved — save to keep it", "ok");
           } else { await Store.feedback.setApproved(x.id, true); App.reloadFeedback(); loadInbox(); App.toast("Approved — now live", "ok"); }
@@ -242,6 +245,17 @@
     draft = JSON.parse(JSON.stringify(App.get()));
     addSectionButtons();
     openPanel();
+    updateBadge();
+  }
+  // Number of feedback items waiting for approval, shown on the Admin button.
+  async function updateBadge() {
+    const btn = $("#adminNav"); if (!btn) return;
+    let n = 0;
+    try { n = (await Store.feedback.listAll()).filter(function (x) { return !x.approved; }).length; } catch (e) {}
+    let dot = $(".fb-dot", btn);
+    if (!n) { if (dot) dot.remove(); return; }
+    if (!dot) { dot = document.createElement("span"); dot.className = "fb-dot"; btn.appendChild(dot); }
+    dot.textContent = n; btn.title = n + " feedback waiting for approval";
   }
   function addSectionButtons() {
     Object.keys(SEC_TAB).forEach(function (id) {
@@ -268,6 +282,6 @@
       closeLogin(); enterAdmin(); App.toast("Welcome, admin", "ok");
     });
     window.addEventListener("beforeunload", function (e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
-    if (await Store.isLoggedIn()) { document.body.classList.add("admin-on"); addSectionButtons(); }
+    if (await Store.isLoggedIn()) { document.body.classList.add("admin-on"); addSectionButtons(); updateBadge(); }
   });
 })();

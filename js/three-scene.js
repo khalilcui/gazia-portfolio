@@ -132,16 +132,17 @@
   const heroCanvas = document.getElementById("hero3d");
   const hero = { renderer: null, scene: new T.Scene(), camera: null, bottle: null, orbit: [], lights: [], labelCtx: null, labelTex: null };
 
+  function L(en, de) { return window.I18N && I18N.lang === "de" ? de : en; }
   function drawLabel(theme) {
     const c = hero.labelCtx; if (!c) return;
     const W = 1024, H = 512; c.clearRect(0, 0, W, H);
     c.fillStyle = "#f7f9ff"; c.fillRect(0, 0, W, H);
     c.fillStyle = theme.a1; c.fillRect(0, 0, W, 26); c.fillRect(0, H - 26, W, 26);
     c.textAlign = "center"; c.fillStyle = "#0b1736";
-    c.font = "800 92px Sora, Arial, sans-serif"; c.fillText("Pharmacy", W / 2, 205);
+    c.font = "800 92px Sora, Arial, sans-serif"; c.fillText(L("Pharmacy", "Apotheke"), W / 2, 205);
     c.fillStyle = theme.light ? theme.a1 : theme.a1;
-    c.font = "600 44px Manrope, Arial, sans-serif"; c.fillText("Better Medicines", W / 2, 285);
-    c.fillText("Healthier Tomorrow", W / 2, 340);
+    c.font = "600 44px Manrope, Arial, sans-serif"; c.fillText(L("Better Medicines", "Bessere Medizin"), W / 2, 285);
+    c.fillText(L("Healthier Tomorrow", "Gesündere Zukunft"), W / 2, 340);
     // medical cross
     c.fillStyle = theme.a1; const cx = W / 2, cy = 420;
     c.fillRect(cx - 14, cy - 44, 28, 88); c.fillRect(cx - 44, cy - 14, 88, 28);
@@ -236,8 +237,9 @@
     c.fillStyle = t.a1; c.fillRect(0, 0, W, 18); c.fillRect(0, H - 18, W, 18);
     c.fillStyle = "#0b1736"; c.textAlign = "center";
     c.font = "800 62px Sora, Arial, sans-serif";
-    c.fillText("Better", W / 2, 118); c.fillText("Health", W / 2, 188);
-    c.fillStyle = t.a1; c.fillText("Brighter", W / 2, 268); c.fillText("Future", W / 2, 338);
+    if (L(0, 1)) c.font = "800 54px Sora, Arial, sans-serif";
+    c.fillText(L("Better", "Bessere"), W / 2, 118); c.fillText(L("Health", "Gesundheit"), W / 2, 188);
+    c.fillStyle = t.a1; c.fillText(L("Brighter", "Strahlende"), W / 2, 268); c.fillText(L("Future", "Zukunft"), W / 2, 338);
     c.fillRect(W / 2 - 10, 372, 20, 56); c.fillRect(W / 2 - 28, 390, 56, 20);
   }
 

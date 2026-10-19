@@ -75,6 +75,17 @@
     return new Promise(function (res) { const r = new FileReader(); r.onload = function () { res(r.result); }; r.readAsDataURL(blob); });
   }
 
+  let fbModeP = null, fbPublicCache = null;
+  function adminKey() { try { return sessionStorage.getItem("gh_key") || ""; } catch (e) { return ""; } }
+  async function adminFetch(path, init) {
+    const k = adminKey();
+    if (!k) throw new Error("Log out and log in again to manage feedback");
+    const r = await fetch(path, Object.assign({}, init, { headers: Object.assign({ "x-admin-key": k }, init.headers || {}) }));
+    const j = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(j.error || ("Server error " + r.status));
+    return j;
+  }
+
   const PENDING_KEY = "gh_feedback_pending_v1";
   function readPending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); } catch (e) { return []; } }
   function writePending(list) { try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch (e) {} }
@@ -112,7 +123,7 @@
       }
       if (!window.crypto || !crypto.subtle) return { ok: false, msg: "Open the site over https to use admin." };
       const ok = (await sha256(password)) === ADMIN_HASH;
-      if (ok) try { sessionStorage.setItem("gh_admin", "1"); } catch (e) {}
+      if (ok) try { sessionStorage.setItem("gh_admin", "1"); sessionStorage.setItem("gh_key", password); } catch (e) {}
       return ok ? { ok: true } : { ok: false, msg: "Wrong admin key." };
     },
 
@@ -125,7 +136,7 @@
 
     logout: async function () {
       if (mode === "supabase") { try { const c = await client(); await c.auth.signOut(); } catch (e) {} }
-      try { sessionStorage.removeItem("gh_admin"); } catch (e) {}
+      try { sessionStorage.removeItem("gh_admin"); sessionStorage.removeItem("gh_key"); } catch (e) {}
     },
 
     save: async function (content) {
@@ -169,24 +180,44 @@
 
     /* ---------- Visitor feedback ---------- */
     feedback: {
+      // Where feedback lives: Supabase (if configured) → the site's own /api/feedback
+      // server (Vercel Blob) → this browser only (fallback, e.g. local testing).
+      mode: function () {
+        if (mode === "supabase") return Promise.resolve("supabase");
+        if (!fbModeP) fbModeP = fetch("api/feedback", { headers: { accept: "application/json" } })
+          .then(function (r) { return r.json().then(function (j) { if (r.ok && j.enabled) { fbPublicCache = j.items || []; return "server"; } return "local"; }); })
+          .catch(function () { return "local"; });
+        return fbModeP;
+      },
       // Visitor submits feedback. Always lands as "pending" until the admin approves it.
       submit: async function (f) {
         const row = { name: f.name.slice(0, 60), role: (f.role || "").slice(0, 60), rating: Math.max(1, Math.min(5, f.rating | 0)), message: f.message.slice(0, 800) };
         if (CFG.formspreeId) {
           try { await fetch("https://formspree.io/f/" + CFG.formspreeId, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ _subject: "New portfolio feedback (" + row.rating + "/5)" }, row)) }); } catch (e) {}
         }
-        if (mode === "supabase") {
+        const m = await this.mode();
+        if (m === "supabase") {
           const c = await client();
           const { error } = await c.from("feedback").insert(row);
           if (error) throw new Error(error.message);
           return;
         }
+        if (m === "server") {
+          const r = await fetch("api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ website: f.website || "" }, row)) });
+          if (!r.ok) throw new Error((await r.json().catch(function () { return {}; })).error || "Couldn't send feedback");
+          return;
+        }
         const list = readPending(); list.unshift(Object.assign({ id: "l" + Date.now(), created_at: new Date().toISOString(), approved: false }, row));
         writePending(list.slice(0, 100));
       },
-      // Approved feedback for everyone (Supabase mode).
+      // Approved feedback for everyone.
       listPublic: async function () {
-        if (mode !== "supabase") return [];
+        const m = await this.mode();
+        if (m === "server") {
+          if (fbPublicCache) { const c = fbPublicCache; fbPublicCache = null; return c; }
+          try { const r = await fetch("api/feedback", { cache: "no-store" }); const j = await r.json(); return j.items || []; } catch (e) { return []; }
+        }
+        if (m !== "supabase") return [];
         try {
           const c = await client();
           const { data, error } = await c.from("feedback").select("id,name,role,rating,message,created_at").eq("approved", true).order("created_at", { ascending: false }).limit(60);
@@ -195,20 +226,26 @@
       },
       // Admin inbox: everything submitted.
       listAll: async function () {
-        if (mode !== "supabase") return readPending();
+        const m = await this.mode();
+        if (m === "server") return (await adminFetch("api/feedback?all=1", { method: "GET" })).items || [];
+        if (m !== "supabase") return readPending();
         const c = await client();
         const { data, error } = await c.from("feedback").select("*").order("created_at", { ascending: false }).limit(200);
         if (error) throw new Error(error.message);
         return data;
       },
       setApproved: async function (id, val) {
-        if (mode !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
+        const m = await this.mode();
+        if (m === "server") { await adminFetch("api/feedback", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: id, approved: !!val }) }); return; }
+        if (m !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
         const c = await client();
         const { error } = await c.from("feedback").update({ approved: val }).eq("id", id);
         if (error) throw new Error(error.message);
       },
       remove: async function (id) {
-        if (mode !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
+        const m = await this.mode();
+        if (m === "server") { await adminFetch("api/feedback?id=" + encodeURIComponent(id), { method: "DELETE" }); return; }
+        if (m !== "supabase") { writePending(readPending().filter(function (r) { return r.id !== id; })); return; }
         const c = await client();
         const { error } = await c.from("feedback").delete().eq("id", id);
         if (error) throw new Error(error.message);

@@ -13,7 +13,8 @@ Three.js and the Supabase client are bundled in `/vendor`, so nothing else needs
 | Snake cursor in theme colours (desktop only) | `js/app.js` → `initSnake` |
 | 3D skills coverflow with progress bars | `js/app.js` → `buildCoverflow` |
 | Auto-rotating 3D certificate ring + click-to-zoom lightbox | `js/app.js` → `buildCertRing` |
-| Feedback section: star ratings, review wall, admin approval | `js/app.js` → `renderFeedback`, `js/store.js` |
+| Feedback section: star ratings, review wall, admin approval | `js/app.js` → `renderFeedback`, `js/store.js`, `api/feedback.js` |
+| English / German language switch | `js/i18n.js` |
 | Admin panel (**Admin** button, top-right of the navbar; key: `ghazia4321`) | `js/admin.js`, `js/store.js` |
 | All original content | `js/data.js` |
 
@@ -126,8 +127,33 @@ adminEmail: "admin@gazia-portfolio.com",
 Visitors rate the portfolio (1–5 stars) and leave a message. New feedback stays **hidden until the admin approves it**:
 Admin → **Feedback** tab → **Approve**, **Hide** or **Delete**. Approved reviews show on the site with an average rating and a scrolling review wall.
 
-- **Live mode (Supabase):** feedback from every visitor arrives in the admin inbox.
-- **Local mode:** only feedback sent from the admin's own browser shows in the inbox. Add a Formspree ID (below) to also get each new piece of feedback by email.
+When there are reviews waiting, the **Admin** button shows an orange number after login.
+
+### ⚠️ Required once: connect feedback storage in Vercel (2 minutes)
+
+Feedback is saved by the site's own server function (`api/feedback.js`) in **Vercel Blob** storage.
+No new account is needed. Until this is done, feedback only stays in the visitor's own browser and never reaches the admin.
+
+1. Open https://vercel.com/dashboard → project **gazia-portfolio**.
+2. Click the **Storage** tab → **Create** → **Blob** → name it `gazia-feedback` → **Create**.
+3. When asked, **connect it to the gazia-portfolio project** (all environments). This adds `BLOB_READ_WRITE_TOKEN` automatically.
+4. Go to **Deployments** → the newest deployment → **⋯** → **Redeploy**.
+
+To check it worked, open `https://<your-site>/api/feedback`. It should show `{"enabled":true,...}`.
+
+The server checks the admin key itself (only its SHA-256 hash is stored). To change the key later, add an environment variable
+`ADMIN_KEY_SHA256` with the SHA-256 hash of the new key, and update `ADMIN_HASH` in `js/store.js` to match.
+
+If Supabase is configured instead (see Live mode above), feedback uses the Supabase `feedback` table.
+Add a Formspree ID (below) to also get each new piece of feedback by email.
+
+## Language switch (English / Deutsch)
+
+The **EN | DE** switch in the navbar translates the whole site, including the 3D labels. Visitors whose browser is set to German see German automatically; the choice is remembered.
+
+All translations live in `js/i18n.js` as `"English text": "German text"` pairs. The admin edits content in English.
+If the admin adds **new** text, it shows in English on the German page until a matching line is added to `js/i18n.js`.
+Visitor feedback is never translated.
 
 ## Contact form
 

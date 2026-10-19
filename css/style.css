@@ -582,3 +582,31 @@ body.light .ap-badge.wait { color: #92400e; } body.light .ap-badge.live { color:
 }
 @media (max-width: 960px) { .contact { grid-template-columns: 1fr; } .contact-visual { grid-column: auto; height: 420px; } }
 @media (max-width: 640px) { .contact-visual { height: 360px; margin: 0 -14px; } .contact-visual .motto p { font-size: 22px; } .contact-visual .motto { padding: 12px; width: 160px; left: 30%; } }
+
+.ap-fb-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 0 0 12px; border-radius: 10px; background: rgba(245,158,11,.14); border: 1px solid rgba(245,158,11,.45); color: var(--text); font-size: 13px; line-height: 1.5; }
+.ap-fb-note .ico { color: #f59e0b; width: 18px; height: 18px; margin-top: 1px; }
+.nav-admin .fb-dot { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #f59e0b; color: #1a1205; font: 800 11px/18px var(--font-b); text-align: center; margin-left: 2px; }
+
+/* ===== Language switch ===== */
+.lang-switch { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(10px); }
+.lang-switch button { min-width: 36px; height: 34px; padding: 0 8px; border: 0; border-radius: 9px; background: none; color: var(--muted); font: 700 13px var(--font-b); letter-spacing: .04em; cursor: pointer; transition: background .25s, color .25s; }
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button.on { background: linear-gradient(120deg, var(--a1), var(--a2)); color: #fff; box-shadow: 0 4px 14px -4px rgba(var(--a1-rgb), .8); }
+.lang-switch button:focus-visible { outline: 2px solid var(--a2); outline-offset: 1px; }
+@media (max-width: 640px) { .lang-switch button { min-width: 30px; height: 30px; padding: 0 6px; font-size: 12px; } }
+
+/* Navbar: keep labels on one line (longer German words) */
+.nav-links a { white-space: nowrap; }
+.brand-text small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+@media (max-width: 1320px) and (min-width: 961px) {
+  .brand-text small { display: none; }
+  .nav-links a { padding: 8px 8px; font-size: 13.5px; }
+  .nav-actions { gap: 8px; }
+}
+@media (max-width: 1100px) and (min-width: 961px) {
+  .nav { gap: 10px; padding-left: 12px; }
+  .nav-links { gap: 0; }
+  .nav-links a { padding: 8px 6px; font-size: 13px; }
+  .nav-admin span { display: none; }
+}
+@media (max-width: 420px) { .brand-text strong { font-size: 14px; } }
